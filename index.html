@@ -71,7 +71,7 @@
   <div class="keybox">
     <label for="key">Your Google Maps API key</label>
     <div class="row">
-      <input id="key" type="password" placeholder="AIza..." autocomplete="off">
+      <input id="key" type="password" placeholder="AIza..." autocomplete="new-password" spellcheck="false">
       <button id="loadBtn">Load map</button>
     </div>
     <div class="row small" style="margin-top:6px">
@@ -289,6 +289,8 @@ window.gm_authFailure = () => msg("keyMsg", "Google rejected this key. Check tha
 $("loadBtn").onclick = () => {
   const key = $("key").value.trim();
   if (!key) return msg("keyMsg", "Paste an API key first.");
+  if (!/^AIza[0-9A-Za-z_-]{35}$/.test(key))
+    return msg("keyMsg", `This doesn't look like a Google Maps key (${key.length} characters, starts with "${esc(key.slice(0,4))}"). Maps keys start with <b>AIza</b> and are 39 characters long. Keys starting with <b>AQ.</b> come from Google AI Studio and don't work here. Clear the box and paste the key from Google Maps Platform → Keys &amp; Credentials.`);
   try { $("remember").checked ? localStorage.setItem("gmaps_demo_key", key) : localStorage.removeItem("gmaps_demo_key"); } catch(e){}
   $("loadBtn").disabled = true; $("key").disabled = true;
   msg("keyMsg", "Loading Google Maps…", "info");
