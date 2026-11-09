@@ -251,6 +251,10 @@ const ll = p => ({ lat: typeof p.lat === "function" ? p.lat() : p.lat, lng: type
 function msg(el, text, kind="err"){ $(el).innerHTML = text ? `<div class="msg ${kind}">${text}</div>` : ""; }
 function apiError(e){
   const t = (e && (e.message || e.toString())) || "Unknown error";
+  if (/referer .* are blocked|RefererNotAllowed/i.test(t))
+    return "Your key's <b>website restriction</b> blocks this page. In Cloud Console → Keys &amp; Credentials → your key → Websites, add <b>https://" + esc(location.host) + "/*</b> (domain only, no folder path), save, wait 5 min.<br><span class='small'>" + esc(t) + "</span>";
+  if (/Permission denied on the service|API_KEY_SERVICE_BLOCKED/i.test(t))
+    return "This API is either not enabled, or not ticked in your key's <b>API restrictions</b>. Check both in Cloud Console, then wait 5 min.<br><span class='small'>" + esc(t) + "</span>";
   if (/not activated|ApiNotActivated|PERMISSION_DENIED|has not been used|disabled/i.test(t))
     return "This API is not enabled for your key. Enable it in Google Cloud Console → APIs &amp; Services, then retry.<br><span class='small'>" + esc(t) + "</span>";
   return esc(t);
