@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Google Maps Platform in Practice — Eastern Ethiopia</title>
+<style>
+  :root{
+    --ink:#1d2327; --muted:#5b6670; --line:#d9dee2; --bg:#f6f4ef; --panel:#fffdf8;
+    --accent:#0b5d7a; --accent2:#b5532a; --ok:#2f7d32; --bad:#b3261e;
+    --serif:"Times New Roman", Times, "Liberation Serif", Georgia, serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:var(--serif);color:var(--ink);background:var(--bg);font-size:18px}
+  .app{display:grid;grid-template-columns:460px 1fr;height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;display:flex;flex-direction:column}
+  header{padding:18px 22px 12px;border-bottom:1px solid var(--line)}
+  header h1{font-size:1.45rem;margin:0 0 4px;line-height:1.2}
+  header p{margin:0;color:var(--muted);font-size:1rem}
+  #map{width:100%;height:100%}
+  .placeholder{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:1.2rem;text-align:center;padding:40px}
+  .keybox{padding:14px 22px;border-bottom:1px solid var(--line);background:#f1efe8}
+  .keybox label{font-weight:bold;display:block;margin-bottom:6px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=text],input[type=password],select,textarea{font-family:var(--serif);font-size:1rem;padding:7px 9px;border:1px solid #b9c1c7;border-radius:4px;background:#fff;color:var(--ink)}
+  input[type=text],input[type=password]{flex:1;min-width:0}
+  textarea{width:100%;min-height:96px;resize:vertical}
+  button{font-family:var(--serif);font-size:1rem;padding:7px 13px;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent)}
+  button.warm{background:var(--accent2);border-color:var(--accent2)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .small{font-size:.9rem;color:var(--muted)}
+  nav.tabs{display:flex;flex-wrap:wrap;gap:6px;padding:12px 22px 0}
+  nav.tabs button{background:#fff;color:var(--ink);border:1px solid var(--line);font-size:.95rem;padding:6px 10px}
+  nav.tabs button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  section.tab{display:none;padding:14px 22px 22px}
+  section.tab.active{display:block}
+  section.tab h2{font-size:1.25rem;margin:4px 0 6px}
+  .why{background:#eef4f6;border-left:4px solid var(--accent);padding:8px 12px;margin:8px 0 12px;font-size:1rem}
+  .api{display:inline-block;font-size:.85rem;border:1px solid var(--accent);color:var(--accent);border-radius:12px;padding:1px 9px;margin:0 4px 4px 0}
+  .out{margin-top:12px;font-size:1rem}
+  table{border-collapse:collapse;width:100%;font-size:.95rem;margin-top:6px}
+  th,td{border-bottom:1px solid var(--line);padding:5px 4px;text-align:left;vertical-align:top}
+  th{font-weight:bold}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .in{color:var(--bad);font-weight:bold}
+  .outz{color:var(--ok);font-weight:bold}
+  .stat{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .stat div{background:#fff;border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+  .stat b{display:block;font-size:1.35rem}
+  details{margin-top:14px}
+  summary{cursor:pointer;color:var(--accent)}
+  pre{background:#1d2327;color:#f3efe4;padding:10px 12px;border-radius:4px;overflow-x:auto;font-size:.82rem;line-height:1.4}
+  .msg{padding:8px 12px;border-radius:4px;margin-top:10px;font-size:.98rem}
+  .msg.err{background:#fbe9e7;color:var(--bad);border:1px solid #f0c2bb}
+  .msg.info{background:#eef4f6;color:var(--accent);border:1px solid #c7dbe3}
+  .warnbox{background:#fff4e5;border:1px solid #f0d2a8;padding:8px 12px;border-radius:4px;font-size:.95rem;margin-top:8px}
+  svg text{font-family:var(--serif)}
+  footer{margin-top:auto;padding:12px 22px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+  @media (max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto 60vh;height:auto}#mapwrap{height:60vh}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <header>
+    <h1>Google Maps Platform in Practice</h1>
+    <p>Five working case scenarios for eastern Ethiopia — Maya, Harar, Dire Dawa, Jijiga</p>
+  </header>
+
+  <div class="keybox">
+    <label for="key">Your Google Maps API key</label>
+    <div class="row">
+      <input id="key" type="password" placeholder="AIza..." autocomplete="off">
+      <button id="loadBtn">Load map</button>
+    </div>
+    <div class="row small" style="margin-top:6px">
+      <label style="font-weight:normal"><input type="checkbox" id="remember"> remember on this browser</label>
+    </div>
+    <div class="small" style="margin-top:4px">Enable: Maps JavaScript API, Geocoding API, Places API (New), Routes API, Elevation API.</div>
+    <div id="keyMsg"></div>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="t1" class="active">1 · Field sites</button>
+    <button data-tab="t2">2 · Nearest services</button>
+    <button data-tab="t3">3 · Travel time</button>
+    <button data-tab="t4">4 · Elevation</button>
+    <button data-tab="t5">5 · Flood & plots</button>
+  </nav>
+
+  <!-- 1. GEOCODING -->
+  <section class="tab active" id="t1">
+    <h2>Locate field sites from names</h2>
+    <span class="api">Geocoding API</span><span class="api">Reverse geocoding</span>
+    <div class="why"><b>Real problem:</b> field teams record sites by name ("Haramaya University", "Harar Jugol"). Before any GIS analysis they need coordinates. Geocoding turns a list of names into a point layer in seconds.</div>
+    <label class="small">One place per line</label>
+    <textarea id="geoList">Haramaya University, Ethiopia
+Harar Jugol, Ethiopia
+Dire Dawa Railway Station, Ethiopia
+Jijiga University, Ethiopia</textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="geoRun" disabled>Geocode list</button>
+      <button id="geoCopy" class="ghost" disabled>Copy as CSV</button>
+      <button id="geoClear" class="ghost" disabled>Clear</button>
+    </div>
+    <p class="small">Tip: click anywhere on the map to <b>reverse-geocode</b> it (coordinates → address). Every site found here is reused in scenario 5.</p>
+    <div class="out" id="geoOut"></div>
+    <details><summary>Show the core code</summary>
+<pre>const { Geocoder } = await google.maps.importLibrary("geocoding");
+const geocoder = new Geocoder();
+const { results } = await geocoder.geocode({ address: "Harar Jugol, Ethiopia" });
+const loc = results[0].geometry.location;   // lat(), lng()
+// reverse: geocoder.geocode({ location: {lat, lng} })</pre></details>
+  </section>
+
+  <!-- 2. PLACES NEARBY -->
+  <section class="tab" id="t2">
+    <h2>Nearest health facilities and services</h2>
+    <span class="api">Places API (New) · searchNearby</span><span class="api">Geometry library</span>
+    <div class="why"><b>Real problem:</b> where is the nearest hospital or pharmacy to a village or a flood-affected kebele? Planners and NGOs use this to locate service gaps.</div>
+    <div class="row">
+      <select id="plType">
+        <option value="hospital">Hospital</option>
+        <option value="pharmacy">Pharmacy</option>
+        <option value="doctor">Clinic / doctor</option>
+        <option value="school">School</option>
+        <option value="university">University</option>
+        <option value="bank">Bank</option>
+        <option value="gas_station">Fuel station</option>
+      </select>
+      <select id="plRadius">
+        <option value="5000">5 km</option>
+        <option value="10000" selected>10 km</option>
+        <option value="25000">25 km</option>
+        <option value="50000">50 km (max)</option>
+      </select>
+    </div>
+    <p class="small">Search centre: <span id="plCentreLbl">Maya town (default)</span>. Click the map while this tab is open to move it.</p>
+    <div class="row"><button id="plRun" disabled>Search nearby</button></div>
+    <div class="out" id="plOut"></div>
+    <details><summary>Show the core code</summary>
+<pre>const { Place, SearchNearbyRankPreference } =
+      await google.maps.importLibrary("places");
+const { places } = await Place.searchNearby({
+  fields: ["displayName", "location", "formattedAddress"],
+  locationRestriction: { center, radius: 10000 },   // max 50 km
+  includedPrimaryTypes: ["hospital"],
+  maxResultCount: 10,
+  rankPreference: SearchNearbyRankPreference.DISTANCE,
+});</pre></details>
+  </section>
+
+  <!-- 3. ROUTES -->
+  <section class="tab" id="t3">
+    <h2>Travel time to the referral hospital</h2>
+    <span class="api">Routes API · Route.computeRoutes</span>
+    <div class="why"><b>Real problem:</b> how long does a patient from each town need to reach Hiwot Fana Specialized Hospital in Harar? Road travel time, not straight-line distance, is what matters for access.</div>
+    <label class="small">Destination</label>
+    <input type="text" id="rtDest" value="Hiwot Fana Specialized University Hospital, Harar, Ethiopia" style="width:100%">
+    <div class="row" style="margin-top:8px">
+      <select id="rtMode">
+        <option value="DRIVING">Driving</option>
+        <option value="WALKING">Walking</option>
+      </select>
+      <button id="rtRun" disabled>Compute routes</button>
+    </div>
+    <p class="small">Origins: Maya, Dire Dawa, Babile, Jijiga (approximate town centres). Click the map on this tab to add your own origin.</p>
+    <div class="out" id="rtOut"></div>
+    <details><summary>Show the core code</summary>
+<pre>const { Route } = await google.maps.importLibrary("routes");
+const { routes } = await Route.computeRoutes({
+  origin: { lat: 9.400, lng: 42.013 },        // Maya
+  destination: "Hiwot Fana Specialized University Hospital, Harar",
+  travelMode: "DRIVING",
+  fields: ["path", "distanceMeters", "durationMillis"],
+});
+// routes[0].durationMillis / 60000  → minutes</pre></details>
+  </section>
+
+  <!-- 4. ELEVATION -->
+  <section class="tab" id="t4">
+    <h2>Elevation profile along a road</h2>
+    <span class="api">Elevation API</span><span class="api">Routes API</span>
+    <div class="why"><b>Real problem:</b> the Harar → Dire Dawa road drops off the escarpment. The profile shows where gradients are steepest — useful for runoff, road-safety and drainage discussions.</div>
+    <div class="row">
+      <select id="elSrc">
+        <option value="hd">Harar → Dire Dawa road</option>
+        <option value="mh">Maya → Harar road</option>
+        <option value="last">Last route from scenario 3</option>
+      </select>
+      <button id="elRun" disabled>Get profile</button>
+    </div>
+    <div class="out" id="elOut"></div>
+    <details><summary>Show the core code</summary>
+<pre>const { ElevationService } = await google.maps.importLibrary("elevation");
+const elevator = new ElevationService();
+const { results } = await elevator.getElevationAlongPath({
+  path: routePath,          // LatLng array from the route
+  samples: 200,             // 2–512 equidistant samples
+});
+results.map(r =&gt; r.elevation);   // metres above sea level</pre></details>
+  </section>
+
+  <!-- 5. FLOOD + AREA -->
+  <section class="tab" id="t5">
+    <h2>Flood-zone exposure and plot area</h2>
+    <span class="api">Data layer (GeoJSON)</span><span class="api">Geometry · containsLocation</span><span class="api">Geometry · computeArea</span>
+    <div class="why"><b>Real problem:</b> which schools, wells or farm plots fall inside a flood-prone zone? Load your own flood susceptibility polygons (GeoJSON) and test every site in one click. Then measure an urban-agriculture plot.</div>
+    <div class="row">
+      <button id="fzDemo" class="warm" disabled>Load illustrative Dechatu zone</button>
+      <label class="ghost" style="cursor:pointer;border:1px solid var(--accent);color:var(--accent);padding:6px 12px;border-radius:4px">Load GeoJSON… <input type="file" id="fzFile" accept=".geojson,.json" style="display:none"></label>
+    </div>
+    <div class="warnbox">The demo zone is a hand-drawn corridor for teaching only — <b>not</b> a hazard map. Replace it with your own susceptibility polygons (WGS84 GeoJSON).</div>
+    <div class="row" style="margin-top:10px">
+      <button id="fzSamples" class="ghost" disabled>Add sample sites</button>
+      <button id="fzTest" disabled>Test all sites</button>
+    </div>
+    <p class="small">Sites = everything geocoded in scenario 1 + clicks on the map while this tab is open (when not drawing a plot).</p>
+    <div class="out" id="fzOut"></div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+    <h2>Measure a plot</h2>
+    <div class="row">
+      <button id="arStart" disabled>Start drawing</button>
+      <button id="arDone" class="ghost" disabled>Finish</button>
+      <button id="arClear" class="ghost" disabled>Clear</button>
+    </div>
+    <p class="small">Click the plot corners on the map (satellite view helps), then Finish.</p>
+    <div class="out" id="arOut"></div>
+    <details><summary>Show the core code</summary>
+<pre>const { spherical, poly } = await google.maps.importLibrary("geometry");
+map.data.addGeoJson(floodZones);                  // your polygons
+const inside = poly.containsLocation(siteLatLng, zonePolygon);
+const areaM2 = spherical.computeArea(plotPath);   // m², geodesic</pre></details>
+  </section>
+
+  <div id="globalMsg" style="padding:0 22px"></div>
+  <footer>Built for a Google Maps Platform assignment · Routes and Places use the current (non-legacy) services · Map data © Google</footer>
+</aside>
+
+<div id="mapwrap"><div id="map"><div class="placeholder">Paste your API key and press <b>&nbsp;Load map&nbsp;</b> to start.</div></div></div>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtKm = m => (m/1000).toFixed(1) + " km";
+const fmtMin = ms => { const m = Math.round(ms/60000); return m >= 60 ? `${Math.floor(m/60)} h ${m%60} min` : `${m} min`; };
+const ll = p => ({ lat: typeof p.lat === "function" ? p.lat() : p.lat, lng: typeof p.lng === "function" ? p.lng() : p.lng });
+function msg(el, text, kind="err"){ $(el).innerHTML = text ? `<div class="msg ${kind}">${text}</div>` : ""; }
+function apiError(e){
+  const t = (e && (e.message || e.toString())) || "Unknown error";
+  if (/not activated|ApiNotActivated|PERMISSION_DENIED|has not been used|disabled/i.test(t))
+    return "This API is not enabled for your key. Enable it in Google Cloud Console → APIs &amp; Services, then retry.<br><span class='small'>" + esc(t) + "</span>";
+  return esc(t);
+}
+
+/* ---------- reference locations (approximate town centres) ---------- */
+const TOWNS = {
+  maya:     { name:"Maya",      lat: 9.4000, lng: 42.0130 },
+  harar:    { name:"Harar",     lat: 9.3110, lng: 42.1250 },
+  diredawa: { name:"Dire Dawa", lat: 9.6000, lng: 41.8550 },
+  babile:   { name:"Babile",    lat: 9.2170, lng: 42.3330 },
+  jijiga:   { name:"Jijiga",    lat: 9.3500, lng: 42.7960 },
+};
+/* Illustrative corridor along the Dechatu in Dire Dawa — hand-drawn, NOT a hazard map */
+const DEMO_ZONE = { type:"FeatureCollection", features:[{ type:"Feature",
+  properties:{ name:"Illustrative Dechatu flood corridor (teaching only)" },
+  geometry:{ type:"Polygon", coordinates:[[
+    [41.8745,9.5700],[41.8685,9.5850],[41.8635,9.5980],[41.8595,9.6100],[41.8545,9.6250],
+    [41.8495,9.6250],[41.8545,9.6100],[41.8585,9.5980],[41.8635,9.5850],[41.8695,9.5700],[41.8745,9.5700]
+  ]]}}]};
+
+/* ---------- state ---------- */
+let map, G = {}, activeTab = "t1";
+let sites = [];            // {name, lat, lng, marker}
+let routeLines = [], routeMarkers = [], lastRoutePath = null, extraOrigin = null;
+let placeMarkers = [], plCentre = { ...TOWNS.maya }, plCentreMarker = null, plCircle = null;
+let elLine = null, elMarker = null;
+let zonePolys = [];        // google.maps.Polygon (hidden) for containsLocation
+let drawing = false, drawPath = [], drawPoly = null, drawMarkers = [];
+let infoWin;
+
+/* ---------- key handling ---------- */
+try { const k = localStorage.getItem("gmaps_demo_key"); if (k) { $("key").value = k; $("remember").checked = true; } } catch(e){}
+window.gm_authFailure = () => msg("keyMsg", "Google rejected this key. Check that the key is correct, billing is enabled, and (if restricted) this site's address is in the key's HTTP referrer list.");
+
+$("loadBtn").onclick = () => {
+  const key = $("key").value.trim();
+  if (!key) return msg("keyMsg", "Paste an API key first.");
+  try { $("remember").checked ? localStorage.setItem("gmaps_demo_key", key) : localStorage.removeItem("gmaps_demo_key"); } catch(e){}
+  $("loadBtn").disabled = true; $("key").disabled = true;
+  msg("keyMsg", "Loading Google Maps…", "info");
+  bootstrap(key);
+  init().catch(e => { msg("keyMsg", "Could not load the Maps JavaScript API: " + esc(e.message)); $("loadBtn").disabled = false; $("key").disabled = false; });
+};
+
+function bootstrap(key){
+  // Google's official dynamic library loader
+  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({ key, v: "weekly", language: "en" });
+}
+
+async function init(){
+  const { Map, InfoWindow, Polyline, Polygon, Circle } = await google.maps.importLibrary("maps");
+  const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+  const { Geocoder } = await google.maps.importLibrary("geocoding");
+  const geometry = await google.maps.importLibrary("geometry");
+  Object.assign(G, { Map, InfoWindow, Polyline, Polygon, Circle, AdvancedMarkerElement, PinElement, geometry, geocoder: new Geocoder() });
+
+  $("map").innerHTML = "";
+  map = new Map($("map"), {
+    center: { lat: 9.42, lng: 42.18 }, zoom: 9, mapId: "DEMO_MAP_ID",
+    mapTypeControl: true, streetViewControl: false, fullscreenControl: true,
+  });
+  infoWin = new InfoWindow();
+  map.addListener("click", onMapClick);
+  map.data.setStyle({ fillColor:"#b3261e", fillOpacity:0.28, strokeColor:"#b3261e", strokeWeight:2, clickable:false });
+
+  Object.values(TOWNS).forEach(t => pin(t, t.name, "#1d2327", "#ffffff"));
+  document.querySelectorAll("button:disabled").forEach(b => { if (!["arDone","arClear","geoCopy","geoClear","fzTest"].includes(b.id)) b.disabled = false; });
+  msg("keyMsg", "Map loaded. Pick a scenario below.", "info");
+}
+
+function pin(pos, title, bg="#0b5d7a", glyph="#ffffff", scale=1){
+  const p = new G.PinElement({ background: bg, borderColor: "#ffffff", glyphColor: glyph, scale });
+  const m = new G.AdvancedMarkerElement({ map, position: pos, title, content: p.element ?? p });
+  m.addListener("click", () => { infoWin.setContent(`<div style="font-family:Times New Roman,serif;font-size:16px"><b>${esc(title)}</b><br>${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}</div>`); infoWin.open({ map, anchor: m }); });
+  return m;
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("active", s.id === b.dataset.tab));
+  activeTab = b.dataset.tab;
+  if (activeTab !== "t5" && drawing) stopDrawing(false);
+});
+
+async function onMapClick(e){
+  const p = ll(e.latLng);
+  if (activeTab === "t1") return reverseGeocode(p);
+  if (activeTab === "t2") return setPlacesCentre(p, `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`);
+  if (activeTab === "t3") { if (extraOrigin) extraOrigin.marker.map = null; extraOrigin = { name:"Your origin", ...p, marker: pin(p, "Your origin", "#6a3d9a") }; return msg("rtOut", "Custom origin added — press <b>Compute routes</b>.", "info"); }
+  if (activeTab === "t5") { if (drawing) return addVertex(p); return addSite(`Site ${sites.length+1}`, p); }
+}
+
+/* ---------- 1. Geocoding ---------- */
+function addSite(name, p, address=""){
+  const s = { name, address, lat: p.lat, lng: p.lng, marker: pin(p, name, "#0b5d7a") };
+  sites.push(s); $("geoCopy").disabled = $("geoClear").disabled = false; $("fzTest").disabled = !zonePolys.length;
+  renderSites(); return s;
+}
+function renderSites(){
+  if (!sites.length) return $("geoOut").innerHTML = "";
+  $("geoOut").innerHTML = `<table><tr><th>Site</th><th class="num">Lat</th><th class="num">Lng</th></tr>${
+    sites.map(s => `<tr><td>${esc(s.name)}${s.address ? `<br><span class="small">${esc(s.address)}</span>` : ""}</td><td class="num">${s.lat.toFixed(5)}</td><td class="num">${s.lng.toFixed(5)}</td></tr>`).join("")}</table>`;
+}
+$("geoRun").onclick = async () => {
+  const names = $("geoList").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const bounds = new google.maps.LatLngBounds(); let fails = [];
+  $("geoRun").disabled = true;
+  for (const n of names){
+    try {
+      const { results } = await G.geocoder.geocode({ address: n, region: "et" });
+      if (!results.length) { fails.push(n); continue; }
+      const p = ll(results[0].geometry.location);
+      addSite(n.replace(/, Ethiopia$/i, ""), p, results[0].formatted_address); bounds.extend(p);
+    } catch(e){ fails.push(n + (/ZERO_RESULTS/.test(e.message) ? "" : " — " + e.message)); }
+  }
+  $("geoRun").disabled = false;
+  if (!bounds.isEmpty()) map.fitBounds(bounds, 60);
+  if (fails.length) $("geoOut").insertAdjacentHTML("beforeend", `<div class="msg err">Not found: ${fails.map(esc).join("; ")}<br><span class="small">Gaps like this are a real finding: Google's gazetteer is thinner in rural Ethiopia than in Europe.</span></div>`);
+};
+async function reverseGeocode(p){
+  try {
+    const { results } = await G.geocoder.geocode({ location: p });
+    const addr = results[0]?.formatted_address || "No address found";
+    infoWin.setContent(`<div style="font-family:Times New Roman,serif;font-size:16px"><b>${esc(addr)}</b><br>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}<br><button id="addRev" style="margin-top:6px">Add as site</button></div>`);
+    infoWin.setPosition(p); infoWin.open({ map });
+    google.maps.event.addListenerOnce(infoWin, "domready", () => { const b = document.getElementById("addRev"); if (b) b.onclick = () => { addSite(addr.split(",")[0], p, addr); infoWin.close(); }; });
+  } catch(e){ msg("globalMsg", "Reverse geocoding failed: " + apiError(e)); }
+}
+$("geoCopy").onclick = async () => {
+  const csv = "name,lat,lng,address\n" + sites.map(s => `"${s.name}",${s.lat.toFixed(6)},${s.lng.toFixed(6)},"${(s.address||"").replace(/"/g,"'")}"`).join("\n");
+  try { await navigator.clipboard.writeText(csv); $("geoCopy").textContent = "Copied ✓"; setTimeout(() => $("geoCopy").textContent = "Copy as CSV", 1500); }
+  catch(e){ $("geoOut").insertAdjacentHTML("beforeend", `<pre>${esc(csv)}</pre>`); }
+};
+$("geoClear").onclick = () => { sites.forEach(s => s.marker.map = null); sites = []; renderSites(); $("geoCopy").disabled = $("geoClear").disabled = true; $("fzTest").disabled = true; $("fzOut").innerHTML = ""; };
+
+/* ---------- 2. Places nearby ---------- */
+function setPlacesCentre(p, label){
+  plCentre = p; $("plCentreLbl").textContent = label;
+  if (plCentreMarker) plCentreMarker.map = null;
+  plCentreMarker = pin(p, "Search centre", "#b5532a");
+}
+$("plRun").onclick = async () => {
+  const { Place, SearchNearbyRankPreference } = await google.maps.importLibrary("places");
+  placeMarkers.forEach(m => m.map = null); placeMarkers = [];
+  if (plCircle) plCircle.setMap(null);
+  const radius = +$("plRadius").value, type = $("plType").value;
+  plCircle = new G.Circle({ map, center: plCentre, radius, strokeColor:"#b5532a", strokeWeight:1.5, fillOpacity:0.05, clickable:false });
+  map.fitBounds(plCircle.getBounds());
+  $("plOut").innerHTML = `<div class="msg info">Searching…</div>`;
+  try {
+    const { places } = await Place.searchNearby({
+      fields: ["displayName", "location", "formattedAddress", "googleMapsURI"],
+      locationRestriction: { center: plCentre, radius },
+      includedPrimaryTypes: [type], maxResultCount: 10,
+      rankPreference: SearchNearbyRankPreference.DISTANCE, language: "en",
+    });
+    if (!places.length) return $("plOut").innerHTML = `<div class="msg err">No "${esc(type)}" found within ${radius/1000} km. In data-poor areas, absence in Google ≠ absence on the ground — a key limitation to report.</div>`;
+    const centre = new google.maps.LatLng(plCentre.lat, plCentre.lng);
+    const rows = places.map(pl => {
+      const d = G.geometry.spherical.computeDistanceBetween(centre, pl.location);
+      const p = ll(pl.location);
+      placeMarkers.push(pin(p, pl.displayName, "#2f7d32"));
+      return { name: pl.displayName, addr: pl.formattedAddress, d, url: pl.googleMapsURI };
+    }).sort((a,b) => a.d - b.d);
+    $("plOut").innerHTML = `<b>${rows.length} found</b> — nearest is <b>${esc(rows[0].name)}</b>, ${fmtKm(rows[0].d)} straight-line.
+      <table><tr><th>Facility</th><th class="num">Distance</th></tr>${rows.map(r => `<tr><td>${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : esc(r.name)}<br><span class="small">${esc(r.addr||"")}</span></td><td class="num">${fmtKm(r.d)}</td></tr>`).join("")}</table>
+      <p class="small">Straight-line distance understates real access — see scenario 3 for road travel time.</p>`;
+  } catch(e){ $("plOut").innerHTML = `<div class="msg err">${apiError(e)}</div>`; }
+};
+
+/* ---------- 3. Routes ---------- */
+async function computeRoute(origin, destination, travelMode){
+  const { Route } = await google.maps.importLibrary("routes");
+  const { routes } = await Route.computeRoutes({ origin, destination, travelMode, fields: ["path", "distanceMeters", "durationMillis"] });
+  if (!routes || !routes.length) throw new Error("No route found");
+  return routes[0];
+}
+const ROUTE_COLOURS = ["#0b5d7a","#b5532a","#2f7d32","#6a3d9a","#1d2327"];
+$("rtRun").onclick = async () => {
+  routeLines.forEach(l => l.setMap(null)); routeLines = [];
+  const dest = $("rtDest").value.trim(), mode = $("rtMode").value;
+  const origins = [TOWNS.maya, TOWNS.diredawa, TOWNS.babile, TOWNS.jijiga];
+  if (extraOrigin) origins.unshift(extraOrigin);
+  $("rtOut").innerHTML = `<div class="msg info">Computing ${origins.length} routes…</div>`;
+  $("rtRun").disabled = true;
+  const bounds = new google.maps.LatLngBounds(); const rows = [];
+  for (const [i, o] of origins.entries()){
+    try {
+      const r = await computeRoute({ lat:o.lat, lng:o.lng }, dest, mode);
+      const path = r.path.map(ll);
+      path.forEach(p => bounds.extend(p));
+      routeLines.push(new G.Polyline({ map, path, strokeColor: ROUTE_COLOURS[i % 5], strokeWeight: 5, strokeOpacity: 0.85 }));
+      const straight = G.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(o.lat,o.lng), new google.maps.LatLng(path.at(-1).lat, path.at(-1).lng));
+      rows.push({ name:o.name, colour: ROUTE_COLOURS[i % 5], dist:r.distanceMeters, dur:r.durationMillis, detour: r.distanceMeters / straight });
+      if (o.name === "Maya" || i === 0) lastRoutePath = path;
+    } catch(e){ rows.push({ name:o.name, err: apiError(e) }); }
+  }
+  $("rtRun").disabled = false;
+  if (!bounds.isEmpty()) map.fitBounds(bounds, 50);
+  $("rtOut").innerHTML = `<table><tr><th>From</th><th class="num">Road km</th><th class="num">Time</th><th class="num">Detour×</th></tr>${
+    rows.map(r => r.err ? `<tr><td>${esc(r.name)}</td><td colspan="3"><span class="in">${r.err}</span></td></tr>`
+      : `<tr><td><span style="display:inline-block;width:12px;height:12px;background:${r.colour};margin-right:6px"></span>${esc(r.name)}</td><td class="num">${(r.dist/1000).toFixed(1)}</td><td class="num">${fmtMin(r.dur)}</td><td class="num">${r.detour.toFixed(2)}</td></tr>`).join("")}</table>
+    <p class="small"><b>Detour×</b> = road distance ÷ straight-line distance. Values well above 1.3 flag poorly connected places. Durations are Google's model estimates, not measured trips.</p>`;
+};
+
+/* ---------- 4. Elevation ---------- */
+$("elRun").onclick = async () => {
+  const src = $("elSrc").value;
+  $("elOut").innerHTML = `<div class="msg info">Fetching route and elevation…</div>`;
+  try {
+    let path;
+    if (src === "last") { if (!lastRoutePath) throw new Error("Run scenario 3 first."); path = lastRoutePath; }
+    else {
+      const [a, b] = src === "hd" ? [TOWNS.harar, TOWNS.diredawa] : [TOWNS.maya, TOWNS.harar];
+      path = (await computeRoute({lat:a.lat,lng:a.lng}, {lat:b.lat,lng:b.lng}, "DRIVING")).path.map(ll);
+    }
+    // downsample the vertex list so the request stays small
+    const step = Math.max(1, Math.ceil(path.length / 100));
+    const thin = path.filter((_, i) => i % step === 0); if (thin.at(-1) !== path.at(-1)) thin.push(path.at(-1));
+    const { ElevationService } = await google.maps.importLibrary("elevation");
+    const samples = 200;
+    const { results } = await new ElevationService().getElevationAlongPath({ path: thin, samples });
+    const totalLen = G.geometry.spherical.computeLength(path.map(p => new google.maps.LatLng(p.lat, p.lng)));
+    const z = results.map(r => r.elevation), dx = totalLen / (samples - 1);
+    let up = 0, down = 0, maxGrade = 0, maxIdx = 0;
+    for (let i = 1; i < z.length; i++){ const d = z[i]-z[i-1]; d > 0 ? up += d : down -= d; const g = Math.abs(d)/dx*100; if (g > maxGrade){ maxGrade = g; maxIdx = i; } }
+    if (elLine) elLine.setMap(null); if (elMarker) elMarker.map = null;
+    elLine = new G.Polyline({ map, path, strokeColor:"#b5532a", strokeWeight:5 });
+    elMarker = pin(ll(results[maxIdx].location), `Steepest section ≈ ${maxGrade.toFixed(1)}% grade`, "#b3261e");
+    const b = new google.maps.LatLngBounds(); path.forEach(p => b.extend(p)); map.fitBounds(b, 50);
+    $("elOut").innerHTML = profileSVG(z, totalLen, maxIdx) + `
+      <div class="stat">
+        <div>Highest<b>${Math.round(Math.max(...z))} m</b></div><div>Lowest<b>${Math.round(Math.min(...z))} m</b></div>
+        <div>Total climb<b>${Math.round(up)} m</b></div><div>Total descent<b>${Math.round(down)} m</b></div>
+        <div>Road length<b>${(totalLen/1000).toFixed(1)} km</b></div><div>Steepest (~${Math.round(dx)} m step)<b>${maxGrade.toFixed(1)} %</b></div>
+      </div><p class="small">Gradients are averaged over ~${Math.round(dx)} m and depend on Google's DEM resolution; treat as indicative.</p>`;
+  } catch(e){ $("elOut").innerHTML = `<div class="msg err">${apiError(e)}</div>`; }
+};
+function profileSVG(z, len, mark){
+  const W = 410, H = 210, L = 46, R = 8, T = 10, B = 34;
+  const zmin = Math.floor(Math.min(...z)/100)*100, zmax = Math.ceil(Math.max(...z)/100)*100;
+  const x = i => L + i/(z.length-1)*(W-L-R), y = v => T + (zmax-v)/(zmax-zmin)*(H-T-B);
+  const pts = z.map((v,i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  let grid = "";
+  for (let v = zmin; v <= zmax; v += Math.max(100, Math.round((zmax-zmin)/4/100)*100))
+    grid += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e6e8"/><text x="${L-6}" y="${y(v)+5}" text-anchor="end" font-size="15" fill="#5b6670">${v}</text>`;
+  const km = len/1000; let xt = "";
+  for (let k = 0; k <= km; k += km > 40 ? 10 : 5) xt += `<text x="${L + k/km*(W-L-R)}" y="${H-14}" text-anchor="middle" font-size="15" fill="#5b6670">${k}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Elevation profile">${grid}
+    <polygon points="${L},${H-B} ${pts} ${W-R},${H-B}" fill="#b5532a" fill-opacity=".15"/>
+    <polyline points="${pts}" fill="none" stroke="#b5532a" stroke-width="2.2"/>
+    <circle cx="${x(mark)}" cy="${y(z[mark])}" r="5" fill="#b3261e"/>
+    ${xt}<text x="${(W+L)/2}" y="${H-1}" text-anchor="middle" font-size="15" fill="#5b6670">distance (km)</text>
+    <text x="12" y="${(H-B)/2}" font-size="15" fill="#5b6670" transform="rotate(-90 12 ${(H-B)/2})" text-anchor="middle">m a.s.l.</text></svg>`;
+}
+
+/* ---------- 5. Flood exposure + area ---------- */
+function loadZones(geojson){
+  map.data.forEach(f => map.data.remove(f)); zonePolys = [];
+  const feats = map.data.addGeoJson(geojson);
+  const b = new google.maps.LatLngBounds();
+  feats.forEach(f => {
+    const g = f.getGeometry(); if (!g) return;
+    const polys = g.getType() === "Polygon" ? [g] : g.getType() === "MultiPolygon" ? g.getArray() : [];
+    polys.forEach(pg => {
+      const paths = pg.getArray().map(ring => ring.getArray());
+      paths.flat().forEach(p => b.extend(p));
+      zonePolys.push({ poly: new G.Polygon({ paths }), name: f.getProperty("name") || f.getProperty("class") || f.getProperty("susceptibility") || "Zone" });
+    });
+  });
+  if (!zonePolys.length) return msg("fzOut", "No Polygon / MultiPolygon features found in that file.");
+  map.fitBounds(b, 60); $("fzTest").disabled = !sites.length;
+  msg("fzOut", `${zonePolys.length} zone polygon(s) loaded.`, "info");
+}
+$("fzDemo").onclick = () => loadZones(DEMO_ZONE);
+$("fzFile").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { try { loadZones(JSON.parse(r.result)); } catch(err){ msg("fzOut", "Could not read GeoJSON: " + esc(err.message)); } };
+  r.readAsText(f);
+};
+$("fzSamples").onclick = () => {
+  [["School A", 9.6020, 41.8610], ["Health post B", 9.5900, 41.8640], ["Market C", 9.6150, 41.8520], ["Water point D", 9.5950, 41.8480]]
+    .forEach(([n, lat, lng]) => addSite(n + " (sample)", { lat, lng }));
+  map.setCenter({ lat: 9.598, lng: 41.861 }); map.setZoom(14);
+};
+$("fzTest").onclick = () => {
+  const res = sites.map(s => {
+    const p = new google.maps.LatLng(s.lat, s.lng);
+    const hit = zonePolys.find(z => G.geometry.poly.containsLocation(p, z.poly));
+    { const pe = new G.PinElement({ background: hit ? "#b3261e" : "#2f7d32", borderColor:"#fff", glyphColor:"#fff" }); s.marker.content = pe.element ?? pe; }
+    return { name: s.name, zone: hit ? hit.name : null };
+  });
+  const n = res.filter(r => r.zone).length;
+  $("fzOut").innerHTML = `<b>${n} of ${res.length}</b> sites fall inside a flood zone.
+    <table><tr><th>Site</th><th>Status</th></tr>${res.map(r => `<tr><td>${esc(r.name)}</td><td>${r.zone ? `<span class="in">EXPOSED</span> <span class="small">${esc(r.zone)}</span>` : `<span class="outz">outside</span>`}</td></tr>`).join("")}</table>`;
+};
+
+$("arStart").onclick = () => {
+  clearPlot(); drawing = true; map.setMapTypeId("hybrid");
+  $("arStart").disabled = true; $("arDone").disabled = false; $("arClear").disabled = false;
+  msg("arOut", "Click the plot corners on the map…", "info");
+};
+function addVertex(p){
+  drawPath.push(p);
+  drawMarkers.push(new G.Circle({ map, center: p, radius: 2.5, strokeColor:"#ffd54f", fillColor:"#ffd54f", fillOpacity:1, clickable:false }));
+  if (!drawPoly) drawPoly = new G.Polygon({ map, paths: drawPath, strokeColor:"#ffd54f", strokeWeight:2, fillColor:"#ffd54f", fillOpacity:.25, clickable:false });
+  else drawPoly.setPaths(drawPath);
+}
+function stopDrawing(compute=true){
+  drawing = false; $("arStart").disabled = false; $("arDone").disabled = true;
+  if (!compute) return;
+  if (drawPath.length < 3) return msg("arOut", "Need at least 3 corners.");
+  const path = drawPath.map(p => new google.maps.LatLng(p.lat, p.lng));
+  const a = G.geometry.spherical.computeArea(path);
+  const per = G.geometry.spherical.computeLength([...path, path[0]]);
+  $("arOut").innerHTML = `<div class="stat"><div>Area<b>${a < 10000 ? Math.round(a).toLocaleString() + " m²" : (a/10000).toFixed(2) + " ha"}</b></div>
+    <div>Perimeter<b>${Math.round(per).toLocaleString()} m</b></div><div>Corners<b>${drawPath.length}</b></div><div>Hectares<b>${(a/10000).toFixed(3)}</b></div></div>
+    <p class="small">Geodesic area on the WGS84 sphere — accurate enough for plot-level planning, not for cadastral survey.</p>`;
+}
+$("arDone").onclick = () => stopDrawing(true);
+function clearPlot(){ if (drawPoly) drawPoly.setMap(null); drawPoly = null; drawMarkers.forEach(c => c.setMap(null)); drawMarkers = []; drawPath = []; $("arOut").innerHTML = ""; }
+$("arClear").onclick = () => { stopDrawing(false); clearPlot(); $("arClear").disabled = true; };
+</script>
+</body>
+</html>
